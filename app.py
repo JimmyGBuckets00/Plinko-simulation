@@ -5,18 +5,22 @@ import math
 from scipy.special import comb
 from scipy.stats import binom
 
-st.set_page_config(page_title="Olasılık & Simülasyon Paneli", layout="wide")
+# Sayfa Yapılandırması
+st.set_page_config(page_title="Probability & Casino Math Simulator", layout="wide", initial_sidebar_state="expanded")
 
-# Sol Menü
+# Koyu Tema Grafik Stili
+plt.style.use('dark_background')
+
+# Kenar Menüsü
 st.sidebar.title("🎮 Oyun Seçimi")
 game_mode = st.sidebar.radio("Analiz Edilecek Mod:", ["🎰 Galton Board (Plinko)", "💣 Mines (Mayın Tarlası)"])
 
 # ==========================================
-# 1. MOD: PLINKO SIMULASYONU (TAM SÜRÜM)
+# 1. MOD: PLINKO SIMULASYONU
 # ==========================================
 if game_mode == "🎰 Galton Board (Plinko)":
     st.title("🎰 Galton Board (Plinko) Simülasyonu & RTP Analizi")
-    st.markdown("Bu panel, olasılık dağılımı ve kasa avantajının (**House Edge**) bakiye üzerindeki uzun vadeli etkisini modeller.")
+    st.markdown("Binom Dağılımı ve Monte Carlo yöntemiyle bakiye erime ve varyans analizi.")
 
     st.sidebar.header("⚙️ Plinko Parametreleri")
     initial_balance = st.sidebar.number_input("Başlangıç Bakiyesi (TL)", min_value=50, max_value=10000, value=500, step=50)
@@ -24,11 +28,9 @@ if game_mode == "🎰 Galton Board (Plinko)":
     max_rounds = st.sidebar.slider("Maksimum Tur Sayısı", min_value=10, max_value=500, value=100)
     num_players = st.sidebar.slider("Simüle Edilecek Oyuncu Sayısı", min_value=10, max_value=100, value=50, step=10)
 
-    # 8 Satır Düşük Risk Çarpanları
     multipliers = np.array([5.0, 1.0, 0.8, 0.5, 0.4, 0.6, 0.7, 1.5, 3.0])
     rows = 8
 
-    # Olasılıklar ve RTP Hesabı
     k_values = np.arange(rows + 1)
     probabilities = comb(rows, k_values) * (0.5 ** rows)
     expected_multiplier = np.sum(probabilities * multipliers)
@@ -41,15 +43,18 @@ if game_mode == "🎰 Galton Board (Plinko)":
 
     st.subheader("📊 8 Sıralı Piramit Olasılık Dağılımı")
     fig_prob, ax_prob = plt.subplots(figsize=(10, 3.5))
-    bars = ax_prob.bar(k_values, probabilities, color='#4CAF50', edgecolor='black', alpha=0.8)
+    fig_prob.patch.set_alpha(0.0)
+    ax_prob.patch.set_alpha(0.0)
+    
+    bars = ax_prob.bar(k_values, probabilities, color='#00E676', edgecolor='white', alpha=0.85)
     ax_prob.set_xlabel("Slot Pozisyonu (0 = En Sol, 8 = En Sağ)")
     ax_prob.set_ylabel("Düşme Olasılığı")
     ax_prob.set_xticks(k_values)
-    ax_prob.grid(axis='y', linestyle='--', alpha=0.4)
+    ax_prob.grid(axis='y', linestyle='--', alpha=0.3)
 
     for bar, mult in zip(bars, multipliers):
         yval = bar.get_height()
-        ax_prob.text(bar.get_x() + bar.get_width()/2.0, yval + 0.005, f"{mult}x", ha='center', va='bottom', fontsize=8, fontweight='bold')
+        ax_prob.text(bar.get_x() + bar.get_width()/2.0, yval + 0.005, f"{mult}x", ha='center', va='bottom', fontsize=8, color='white', fontweight='bold')
     st.pyplot(fig_prob)
 
     st.subheader(f"📉 {num_players} Farklı Oyuncunun Bakiye Değişimi (Monte Carlo)")
@@ -57,6 +62,8 @@ if game_mode == "🎰 Galton Board (Plinko)":
     ruin_count = 0
 
     fig_sim, ax_sim = plt.subplots(figsize=(10, 4.5))
+    fig_sim.patch.set_alpha(0.0)
+    ax_sim.patch.set_alpha(0.0)
 
     for _ in range(num_players):
         balance = initial_balance
@@ -72,25 +79,25 @@ if game_mode == "🎰 Galton Board (Plinko)":
             balance += gain
             history.append(balance)
         all_player_histories.append(history)
-        ax_sim.plot(history, color='gray', alpha=0.25, linewidth=1)
+        ax_sim.plot(history, color='#90A4AE', alpha=0.25, linewidth=1)
 
     avg_history = np.mean(all_player_histories, axis=0)
-    ax_sim.plot(avg_history, color='blue', linewidth=2.5, label='Oyuncuların Ortalama Bakiyesi')
-    ax_sim.axhline(y=initial_balance, color='red', linestyle='--', linewidth=1.5, label='Başlangıç Noktası')
+    ax_sim.plot(avg_history, color='#29B6F6', linewidth=2.5, label='Ortalama Bakiye')
+    ax_sim.axhline(y=initial_balance, color='#EF5350', linestyle='--', linewidth=1.5, label='Başlangıç Noktası')
     ax_sim.set_xlabel("Oynanan Tur Sayısı")
     ax_sim.set_ylabel("Bakiye (TL)")
     ax_sim.legend(loc='upper right')
-    ax_sim.grid(True, linestyle='--', alpha=0.4)
+    ax_sim.grid(True, linestyle='--', alpha=0.3)
     st.pyplot(fig_sim)
 
-    st.warning(f"Simülasyon Sonucu: Toplam **{num_players}** oyuncudan **{ruin_count}** tanesi tur bitmeden parasını tamamen kaybetti.")
+    st.info(f"Simülasyon Çıktısı: Toplam **{num_players}** oyuncudan **{ruin_count}** tanesi tur bitmeden bakiyesini tüketti.")
 
 # ==========================================
-# 2. MOD: MINES (MAYIN TARLASI) KATLAMA
+# 2. MOD: MINES (MAYIN TARLASI)
 # ==========================================
 else:
     st.title("💣 Mines (Mayın Tarlası) Katlama & İflas Simülasyonu")
-    st.markdown("Yerine koymasız seçim (**Hipergeometrik Dağılım**) ile 1000 TL'yi 2000 TL yapma analizi.")
+    st.markdown("Yerine koymasız seçim (**Hipergeometrik Dağılım**) ile sermaye katlama analizi.")
 
     def kombinasyon_hesapla(n, r):
         if r < 0 or r > n: return 0
@@ -134,7 +141,7 @@ else:
             
             if bakiye >= hedef:
                 kazananlar += 1
-            if p_idx < 30:
+            if p_idx < 35:
                 ornek_yollar.append(yol)
 
         kazanma_orani = (kazananlar / sim_sayisi) * 100
@@ -145,13 +152,16 @@ else:
         m2.metric("Sıfırlanıp Batanlar", f"%{batma_orani:.1f}", delta_color="inverse")
 
         fig, ax = plt.subplots(figsize=(9, 4.5))
+        fig.patch.set_alpha(0.0)
+        ax.patch.set_alpha(0.0)
+        
         for yol in ornek_yollar:
             ax.plot(yol, alpha=0.35, linewidth=1)
         
-        ax.axhline(hedef, color="green", linestyle="--", linewidth=1.5, label=f"Hedef ({hedef} TL)")
-        ax.axhline(0, color="red", linestyle="--", linewidth=1.5, label="İflas (0 TL)")
+        ax.axhline(hedef, color="#00E676", linestyle="--", linewidth=1.5, label=f"Hedef ({hedef} TL)")
+        ax.axhline(0, color="#EF5350", linestyle="--", linewidth=1.5, label="İflas (0 TL)")
         ax.set_xlabel("Oynanan Tur")
         ax.set_ylabel("Bakiye (TL)")
-        ax.legend()
+        ax.legend(loc='upper right')
         ax.grid(True, linestyle='--', alpha=0.3)
         st.pyplot(fig)

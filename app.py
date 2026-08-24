@@ -3,165 +3,177 @@ import numpy as np
 import matplotlib.pyplot as plt
 import math
 from scipy.special import comb
-from scipy.stats import binom
 
-# Sayfa Yapılandırması
-st.set_page_config(page_title="Probability & Casino Math Simulator", layout="wide", initial_sidebar_state="expanded")
+# Sayfa ayarlari
+st.set_page_config(page_title="Olasilik & Simulasyon Paneli", layout="wide")
 
-# Koyu Tema Grafik Stili
-plt.style.use('dark_background')
-
-# Kenar Menüsü
-st.sidebar.title("🎮 Oyun Seçimi")
-game_mode = st.sidebar.radio("Analiz Edilecek Mod:", ["🎰 Galton Board (Plinko)", "💣 Mines (Mayın Tarlası)"])
+# Kenar menusu - mod secimi
+st.sidebar.title("🎮 Oyun Secimi")
+secilen_oyun = st.sidebar.radio("Mod:", ["🎰 Plinko (Galton Board)", "💣 Mines (Mayin Tarlasi)"])
 
 # ==========================================
 # 1. MOD: PLINKO SIMULASYONU
 # ==========================================
-if game_mode == "🎰 Galton Board (Plinko)":
-    st.title("🎰 Galton Board (Plinko) Simülasyonu & RTP Analizi")
-    st.markdown("Binom Dağılımı ve Monte Carlo yöntemiyle bakiye erime ve varyans analizi.")
+if secilen_oyun == "🎰 Plinko (Galton Board)":
+    st.title("🎰 Plinko / Galton Tahtasi Simulasyonu")
+    st.write("Binom dagilimi ve Monte Carlo simülasyonu ile kasanin uzun vadeli kazancinin incelenmesi.")
 
-    st.sidebar.header("⚙️ Plinko Parametreleri")
-    initial_balance = st.sidebar.number_input("Başlangıç Bakiyesi (TL)", min_value=50, max_value=10000, value=500, step=50)
-    bet_amount = st.sidebar.number_input("Tur Başına Bahis (TL)", min_value=1, max_value=500, value=10, step=1)
-    max_rounds = st.sidebar.slider("Maksimum Tur Sayısı", min_value=10, max_value=500, value=100)
-    num_players = st.sidebar.slider("Simüle Edilecek Oyuncu Sayısı", min_value=10, max_value=100, value=50, step=10)
+    st.sidebar.subheader("Ayarlar")
+    bakiye = st.sidebar.number_input("Baslangic Bakiyesi (TL)", value=500, step=50)
+    bahis = st.sidebar.number_input("Tur Basi Bahis (TL)", value=10, step=1)
+    tur_sayisi = st.sidebar.slider("Maksimum Tur Sayisi", min_value=10, max_value=300, value=100)
+    oyuncu_sayisi = st.sidebar.slider("Simule Edilecek Kisi Sayisi", min_value=10, max_value=100, value=50)
 
-    multipliers = np.array([5.0, 1.0, 0.8, 0.5, 0.4, 0.6, 0.7, 1.5, 3.0])
-    rows = 8
+    # 8 sira icin standart carpanlar
+    carpanlar = [5.0, 1.0, 0.8, 0.5, 0.4, 0.6, 0.7, 1.5, 3.0]
+    satir = 8
 
-    k_values = np.arange(rows + 1)
-    probabilities = comb(rows, k_values) * (0.5 ** rows)
-    expected_multiplier = np.sum(probabilities * multipliers)
-    rtp = expected_multiplier * 100
-    house_edge = 100 - rtp
+    # Olasilik hesabi: C(8, k) * (0.5^8)
+    slotlar = np.arange(satir + 1)
+    ihtimaller = [comb(satir, k) * (0.5 ** satir) for k in slotlar]
+    
+    # Kasa avantaji ve RTP hesabi
+    rtp = sum(p * m for p, m in zip(ihtimaller, carpanlar)) * 100
+    kasa_payi = 100.0 - rtp
 
     col1, col2 = st.columns(2)
-    col1.metric(label="Teorik RTP (Oyuncuya Dönüş)", value=f"%{rtp:.2f}")
-    col2.metric(label="Kasa Avantajı (House Edge)", value=f"%{house_edge:.2f}", delta_color="inverse")
+    col1.metric("Teorik RTP (Geri Odeme)", f"%{rtp:.2f}")
+    col2.metric("Kasa Avantaji (House Edge)", f"%{kasa_payi:.2f}", delta_color="inverse")
 
-    st.subheader("📊 8 Sıralı Piramit Olasılık Dağılımı")
-    fig_prob, ax_prob = plt.subplots(figsize=(10, 3.5))
-    fig_prob.patch.set_alpha(0.0)
-    ax_prob.patch.set_alpha(0.0)
+    st.subheader("📊 Slotlara Dusme Olasiliklari")
     
-    bars = ax_prob.bar(k_values, probabilities, color='#00E676', edgecolor='white', alpha=0.85)
-    ax_prob.set_xlabel("Slot Pozisyonu (0 = En Sol, 8 = En Sağ)")
-    ax_prob.set_ylabel("Düşme Olasılığı")
-    ax_prob.set_xticks(k_values)
-    ax_prob.grid(axis='y', linestyle='--', alpha=0.3)
+    # 1. Grafik: Slot Olasiliklari (Koyu antrasit zemin & Neon Mor/Yesil)
+    fig1, ax1 = plt.subplots(figsize=(10, 3.8))
+    fig1.patch.set_facecolor('#1E222D')
+    ax1.set_facecolor('#1E222D')
+    
+    bar_kutulari = ax1.bar(slotlar, ihtimaller, color='#00E5FF', edgecolor='white', alpha=0.85)
+    ax1.set_xlabel("Slot Pozisyonu (0: En Sol, 8: En Sag)", color='white', fontsize=10)
+    ax1.set_ylabel("Olasilik", color='white', fontsize=10)
+    ax1.tick_params(colors='white')
+    ax1.set_xticks(slotlar)
+    ax1.grid(axis='y', linestyle='--', alpha=0.2, color='white')
 
-    for bar, mult in zip(bars, multipliers):
-        yval = bar.get_height()
-        ax_prob.text(bar.get_x() + bar.get_width()/2.0, yval + 0.005, f"{mult}x", ha='center', va='bottom', fontsize=8, color='white', fontweight='bold')
-    st.pyplot(fig_prob)
+    for bar, mult in zip(bar_kutulari, carpanlar):
+        h = bar.get_height()
+        ax1.text(bar.get_x() + bar.get_width()/2.0, h + 0.005, f"{mult}x", ha='center', va='bottom', color='#FFD700', fontsize=9, fontweight='bold')
+    st.pyplot(fig1)
 
-    st.subheader(f"📉 {num_players} Farklı Oyuncunun Bakiye Değişimi (Monte Carlo)")
-    all_player_histories = []
-    ruin_count = 0
+    st.subheader(f"📉 {oyuncu_sayisi} Kisinin Bakiye Grafigi (Monte Carlo)")
+    
+    # 2. Grafik: Plinko Bakiye Degisimi
+    fig2, ax2 = plt.subplots(figsize=(10, 4.5))
+    fig2.patch.set_facecolor('#1E222D')
+    ax2.set_facecolor('#1E222D')
 
-    fig_sim, ax_sim = plt.subplots(figsize=(10, 4.5))
-    fig_sim.patch.set_alpha(0.0)
-    ax_sim.patch.set_alpha(0.0)
+    tum_yollar = []
+    batan_sayisi = 0
 
-    for _ in range(num_players):
-        balance = initial_balance
-        history = [balance]
-        for r in range(max_rounds):
-            if balance < bet_amount:
-                ruin_count += 1
-                history.extend([balance] * (max_rounds - r))
+    for _ in range(oyuncu_sayisi):
+        kullanici_bakiye = float(bakiye)
+        gecmis = [kullanici_bakiye]
+        
+        for r in range(tur_sayisi):
+            if kullanici_bakiye < bahis:
+                batan_sayisi += 1
+                gecmis.extend([kullanici_bakiye] * (tur_sayisi - r))
                 break
-            balance -= bet_amount
-            landed_slot = np.random.binomial(rows, 0.5)
-            gain = bet_amount * multipliers[landed_slot]
-            balance += gain
-            history.append(balance)
-        all_player_histories.append(history)
-        ax_sim.plot(history, color='#90A4AE', alpha=0.25, linewidth=1)
+            kullanici_bakiye -= bahis
+            dusen_slot = np.random.binomial(satir, 0.5)
+            kullanici_bakiye += bahis * carpanlar[dusen_slot]
+            gecmis.append(kullanici_bakiye)
+        
+        tum_yollar.append(gecmis)
+        ax2.plot(gecmis, color='#9E9E9E', alpha=0.2, linewidth=1)
 
-    avg_history = np.mean(all_player_histories, axis=0)
-    ax_sim.plot(avg_history, color='#29B6F6', linewidth=2.5, label='Ortalama Bakiye')
-    ax_sim.axhline(y=initial_balance, color='#EF5350', linestyle='--', linewidth=1.5, label='Başlangıç Noktası')
-    ax_sim.set_xlabel("Oynanan Tur Sayısı")
-    ax_sim.set_ylabel("Bakiye (TL)")
-    ax_sim.legend(loc='upper right')
-    ax_sim.grid(True, linestyle='--', alpha=0.3)
-    st.pyplot(fig_sim)
+    ortalama_yol = np.mean(tum_yollar, axis=0)
+    ax2.plot(ortalama_yol, color='#00E676', linewidth=2.5, label='Ortalama Bakiye')
+    ax2.axhline(y=bakiye, color='#FF5252', linestyle='--', linewidth=1.5, label='Baslangic Bakiyesi')
+    ax2.set_xlabel("Oynanan Tur", color='white')
+    ax2.set_ylabel("Bakiye (TL)", color='white')
+    ax2.tick_params(colors='white')
+    ax2.legend(loc='upper right', facecolor='#2C303E', edgecolor='none', labelcolor='white')
+    ax2.grid(True, linestyle='--', alpha=0.2, color='white')
+    st.pyplot(fig2)
 
-    st.info(f"Simülasyon Çıktısı: Toplam **{num_players}** oyuncudan **{ruin_count}** tanesi tur bitmeden bakiyesini tüketti.")
+    st.info(f"Simulasyon bitti: Toplam **{oyuncu_sayisi}** kisiden **{batan_sayisi}** tanesi sifirlandi.")
 
 # ==========================================
-# 2. MOD: MINES (MAYIN TARLASI)
+# 2. MOD: MINES SIMULASYONU
 # ==========================================
 else:
-    st.title("💣 Mines (Mayın Tarlası) Katlama & İflas Simülasyonu")
-    st.markdown("Yerine koymasız seçim (**Hipergeometrik Dağılım**) ile sermaye katlama analizi.")
+    st.title("💣 Mines (Mayin Tarlasi) Katlama & Iflas Testi")
+    st.write("5 mayinli tahtada 1000 TL'yi 2000 TL yapmaya calisan oyuncularin gercekci basari orani.")
 
-    def kombinasyon_hesapla(n, r):
+    # Kombinasyon ve olasilik fonksiyonlari
+    def kombinasyon(n, r):
         if r < 0 or r > n: return 0
         return math.comb(n, r)
 
-    def basari_ihtimali(adim, mayin=5):
+    def sans_hesapla(adim, mayin=5):
         elmas = 25 - mayin
         if adim > elmas: return 0.0
-        return kombinasyon_hesapla(elmas, adim) / kombinasyon_hesapla(25, adim)
+        return kombinasyon(elmas, adim) / kombinasyon(25, adim)
 
-    col_a, col_b = st.columns([1, 2])
+    col_sol, col_sag = st.columns([1, 2])
 
-    with col_a:
-        st.subheader("⚙️ Mines Parametreleri")
-        baslangic = st.number_input("Başlangıç Bakiyesi (TL)", value=1000, step=100)
+    with col_sol:
+        st.subheader("⚙️ Parametreler")
+        baslangic = st.number_input("Baslangic Bakiyesi (TL)", value=1000, step=100)
         hedef = st.number_input("Hedef Bakiye (TL)", value=2000, step=100)
-        bahis = st.selectbox("Tur Başı Bahis (TL)", [25, 50, 100, 200, 250, 500])
-        hedef_adim = st.slider("Hedef Çıkış Karesi (Adım)", min_value=1, max_value=8, value=3)
-        sim_sayisi = st.slider("Simüle Edilecek Oyuncu Sayısı", min_value=500, max_value=3000, value=1000, step=500)
+        bahis_miktari = st.selectbox("Tur Basi Bahis (TL)", [25, 50, 100, 200, 250, 500])
+        hedef_kare = st.slider("Hangi Kutuda Cikilacak? (Adim)", min_value=1, max_value=8, value=3)
+        kisi_sayisi = st.slider("Test Edilecek Kisi Sayisi", min_value=500, max_value=3000, value=1000, step=500)
 
-        carpan_tablosu = {1: 0.8124, 2: 1.024, 3: 1.312, 4: 1.708, 5: 2.260, 6: 3.05, 7: 4.20, 8: 6.00}
-        secilen_carpan = carpan_tablosu.get(hedef_adim, 1.0)
-        sans = basari_ihtimali(hedef_adim, 5)
+        # Misli gercek carpanlari
+        carpan_listesi = {1: 0.8124, 2: 1.024, 3: 1.312, 4: 1.708, 5: 2.260, 6: 3.05, 7: 4.20, 8: 6.00}
+        carpan = carpan_listesi.get(hedef_kare, 1.0)
+        tek_tur_sansi = sans_hesapla(hedef_kare, 5)
 
-        st.info(f"**{hedef_adim}. Kare Çarpanı:** {secilen_carpan}x\n\n**Tek Tur Başarı Şansı:** %{sans*100:.2f}")
+        st.warning(f"**{hedef_kare}. Kare Carpani:** {carpan}x\n\n**Kazanma Ihtimali:** %{tek_tur_sansi*100:.2f}")
 
-    with col_b:
-        st.subheader("📈 Monte Carlo Bakiye Yolları")
+    with col_sag:
+        st.subheader("📈 Monte Carlo Bakiye Yollari")
         
         kazananlar = 0
-        ornek_yollar = []
+        ornek_cizgiler = []
 
-        for p_idx in range(sim_sayisi):
-            bakiye = float(baslangic)
-            yol = [bakiye]
-            while bakiye >= bahis and bakiye < hedef and len(yol) < 250:
-                bakiye -= bahis
-                if np.random.rand() < sans:
-                    bakiye += bahis * secilen_carpan
-                yol.append(bakiye)
-            
-            if bakiye >= hedef:
+        for kisi in range(kisi_sayisi):
+            bakiye_anlik = float(baslangic)
+            yol = [bakiye_anlik]
+
+            while bakiye_anlik >= bahis_miktari and bakiye_anlik < hedef and len(yol) < 250:
+                bakiye_anlik -= bahis_miktari
+                if np.random.rand() < tek_tur_sansi:
+                    bakiye_anlik += bahis_miktari * carpan
+                yol.append(bakiye_anlik)
+
+            if bakiye_anlik >= hedef:
                 kazananlar += 1
-            if p_idx < 35:
-                ornek_yollar.append(yol)
+            if kisi < 35:
+                ornek_cizgiler.append(yol)
 
-        kazanma_orani = (kazananlar / sim_sayisi) * 100
-        batma_orani = 100 - kazanma_orani
+        kazanma_yuzdesi = (kazananlar / kisi_sayisi) * 100
+        batma_yuzdesi = 100.0 - kazanma_yuzdesi
 
         m1, m2 = st.columns(2)
-        m1.metric(f"Hedefe Ulaşan ({hedef} TL)", f"%{kazanma_orani:.1f}")
-        m2.metric("Sıfırlanıp Batanlar", f"%{batma_orani:.1f}", delta_color="inverse")
+        m1.metric(f"Hedefe Ulasan ({hedef} TL)", f"%{kazanma_yuzdesi:.1f}")
+        m2.metric("Sifirlanan / Batan", f"%{batma_yuzdesi:.1f}", delta_color="inverse")
 
-        fig, ax = plt.subplots(figsize=(9, 4.5))
-        fig.patch.set_alpha(0.0)
-        ax.patch.set_alpha(0.0)
-        
-        for yol in ornek_yollar:
-            ax.plot(yol, alpha=0.35, linewidth=1)
-        
-        ax.axhline(hedef, color="#00E676", linestyle="--", linewidth=1.5, label=f"Hedef ({hedef} TL)")
-        ax.axhline(0, color="#EF5350", linestyle="--", linewidth=1.5, label="İflas (0 TL)")
-        ax.set_xlabel("Oynanan Tur")
-        ax.set_ylabel("Bakiye (TL)")
-        ax.legend(loc='upper right')
-        ax.grid(True, linestyle='--', alpha=0.3)
-        st.pyplot(fig)
+        # 3. Grafik: Mines Bakiye Yollari (Koyu antrasit & Parlak cizgiler)
+        fig3, ax3 = plt.subplots(figsize=(9, 4.5))
+        fig3.patch.set_facecolor('#1E222D')
+        ax3.set_facecolor('#1E222D')
+
+        renkler = ['#FFD54F', '#4FC3F7', '#BA68C8', '#4DB6AC', '#FF8A65']
+        for idx, yol in enumerate(ornek_cizgiler):
+            ax3.plot(yol, color=renkler[idx % len(renkler)], alpha=0.4, linewidth=1.2)
+
+        ax3.axhline(hedef, color='#00E676', linestyle='--', linewidth=1.8, label=f"Hedef ({hedef} TL)")
+        ax3.axhline(0, color='#FF5252', linestyle='--', linewidth=1.8, label="Iflas (0 TL)")
+        ax3.set_xlabel("Oynanan Tur", color='white')
+        ax3.set_ylabel("Bakiye (TL)", color='white')
+        ax3.tick_params(colors='white')
+        ax3.legend(loc='upper right', facecolor='#2C303E', edgecolor='none', labelcolor='white')
+        ax3.grid(True, linestyle='--', alpha=0.2, color='white')
+        st.pyplot(fig3)

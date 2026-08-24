@@ -2,6 +2,7 @@ import streamlit as st
 import numpy as np
 import matplotlib.pyplot as plt
 import math
+import pandas as pd
 from scipy.special import comb
 
 # Sayfa ayarlari
@@ -16,7 +17,7 @@ secilen_oyun = st.sidebar.radio("Mod:", ["🎰 Plinko (Galton Board)", "💣 Min
 # ==========================================
 if secilen_oyun == "🎰 Plinko (Galton Board)":
     st.title("🎰 Plinko / Galton Tahtasi Simulasyonu")
-    st.write("Binom dagilimi ve Monte Carlo simülasyonu ile kasanin uzun vadeli kazancinin incelenmesi.")
+    st.write("Binom dagilimi ve Monte Carlo simulasyonu ile kasanin uzun vadeli kazancinin incelenmesi.")
 
     st.sidebar.subheader("Ayarlar")
     bakiye = st.sidebar.number_input("Baslangic Bakiyesi (TL)", value=500, step=50)
@@ -24,15 +25,12 @@ if secilen_oyun == "🎰 Plinko (Galton Board)":
     tur_sayisi = st.sidebar.slider("Maksimum Tur Sayisi", min_value=10, max_value=300, value=100)
     oyuncu_sayisi = st.sidebar.slider("Simule Edilecek Kisi Sayisi", min_value=10, max_value=100, value=50)
 
-    # 8 sira icin standart carpanlar
     carpanlar = [5.0, 1.0, 0.8, 0.5, 0.4, 0.6, 0.7, 1.5, 3.0]
     satir = 8
 
-    # Olasilik hesabi: C(8, k) * (0.5^8)
     slotlar = np.arange(satir + 1)
     ihtimaller = [comb(satir, k) * (0.5 ** satir) for k in slotlar]
     
-    # Kasa avantaji ve RTP hesabi
     rtp = sum(p * m for p, m in zip(ihtimaller, carpanlar)) * 100
     kasa_payi = 100.0 - rtp
 
@@ -41,8 +39,6 @@ if secilen_oyun == "🎰 Plinko (Galton Board)":
     col2.metric("Kasa Avantaji (House Edge)", f"%{kasa_payi:.2f}", delta_color="inverse")
 
     st.subheader("📊 Slotlara Dusme Olasiliklari")
-    
-    # 1. Grafik: Slot Olasiliklari (Koyu antrasit zemin & Neon Mor/Yesil)
     fig1, ax1 = plt.subplots(figsize=(10, 3.8))
     fig1.patch.set_facecolor('#1E222D')
     ax1.set_facecolor('#1E222D')
@@ -60,8 +56,6 @@ if secilen_oyun == "🎰 Plinko (Galton Board)":
     st.pyplot(fig1)
 
     st.subheader(f"📉 {oyuncu_sayisi} Kisinin Bakiye Grafigi (Monte Carlo)")
-    
-    # 2. Grafik: Plinko Bakiye Degisimi
     fig2, ax2 = plt.subplots(figsize=(10, 4.5))
     fig2.patch.set_facecolor('#1E222D')
     ax2.set_facecolor('#1E222D')
@@ -72,7 +66,6 @@ if secilen_oyun == "🎰 Plinko (Galton Board)":
     for _ in range(oyuncu_sayisi):
         kullanici_bakiye = float(bakiye)
         gecmis = [kullanici_bakiye]
-        
         for r in range(tur_sayisi):
             if kullanici_bakiye < bahis:
                 batan_sayisi += 1
@@ -82,7 +75,6 @@ if secilen_oyun == "🎰 Plinko (Galton Board)":
             dusen_slot = np.random.binomial(satir, 0.5)
             kullanici_bakiye += bahis * carpanlar[dusen_slot]
             gecmis.append(kullanici_bakiye)
-        
         tum_yollar.append(gecmis)
         ax2.plot(gecmis, color='#9E9E9E', alpha=0.2, linewidth=1)
 
@@ -102,10 +94,9 @@ if secilen_oyun == "🎰 Plinko (Galton Board)":
 # 2. MOD: MINES SIMULASYONU
 # ==========================================
 else:
-    st.title("💣 Mines (Mayin Tarlasi) Katlama & Iflas Testi")
-    st.write("5 mayinli tahtada 1000 TL'yi 2000 TL yapmaya calisan oyuncularin gercekci basari orani.")
+    st.title("💣 Mines (Mayin Tarlasi) Taktik Karsilastirmasi")
+    st.write("Hedef: **1000 TL Bakiyeyi 2000 TL Yapmak**. Kucuk oynamak mi yoksa agresif vur-kac mi kazandirir?")
 
-    # Kombinasyon ve olasilik fonksiyonlari
     def kombinasyon(n, r):
         if r < 0 or r > n: return 0
         return math.comb(n, r)
@@ -115,18 +106,46 @@ else:
         if adim > elmas: return 0.0
         return kombinasyon(elmas, adim) / kombinasyon(25, adim)
 
+    carpan_listesi = {1: 0.8124, 2: 1.024, 3: 1.312, 4: 1.708, 5: 2.260, 6: 3.05, 7: 4.20, 8: 6.00}
+
+    # Hazir Taktikler Secimi
+    st.sidebar.subheader("🎯 Hazir Taktik Sec")
+    taktik_modu = st.sidebar.selectbox(
+        "Strateji Sablonu:",
+        [
+            "Ozel Ayar (Manuel)",
+            "Taktik 1: [Dengeli] 200 TL Bahis + 3. Kare (1.31x)",
+            "Taktik 2: [Agresif] 200 TL Bahis + 5. Kare (2.26x)",
+            "Taktik 3: [10 Canli] 100 TL Bahis + 4. Kare (1.71x)",
+            "Hata Ornegi: 25 TL Bahis + 3. Kare (Kasanin Tuzagi)"
+        ]
+    )
+
+    if taktik_modu == "Taktik 1: [Dengeli] 200 TL Bahis + 3. Kare (1.31x)":
+        def_bahis, def_kare = 200, 3
+    elif taktik_modu == "Taktik 2: [Agresif] 200 TL Bahis + 5. Kare (2.26x)":
+        def_bahis, def_kare = 200, 5
+    elif taktik_modu == "Taktik 3: [10 Canli] 100 TL Bahis + 4. Kare (1.71x)":
+        def_bahis, def_kare = 100, 4
+    elif taktik_modu == "Hata Ornegi: 25 TL Bahis + 3. Kare (Kasanin Tuzagi)":
+        def_bahis, def_kare = 25, 3
+    else:
+        def_bahis, def_kare = 200, 3
+
     col_sol, col_sag = st.columns([1, 2])
 
     with col_sol:
         st.subheader("⚙️ Parametreler")
         baslangic = st.number_input("Baslangic Bakiyesi (TL)", value=1000, step=100)
         hedef = st.number_input("Hedef Bakiye (TL)", value=2000, step=100)
-        bahis_miktari = st.selectbox("Tur Basi Bahis (TL)", [25, 50, 100, 200, 250, 500])
-        hedef_kare = st.slider("Hangi Kutuda Cikilacak? (Adim)", min_value=1, max_value=8, value=3)
+        
+        bahis_secenekleri = [25, 50, 100, 200, 250, 500]
+        bahis_idx = bahis_secenekleri.index(def_bahis) if def_bahis in bahis_secenekleri else 3
+        bahis_miktari = st.selectbox("Tur Basi Bahis (TL)", bahis_secenekleri, index=bahis_idx)
+        
+        hedef_kare = st.slider("Hangi Kutuda Cikilacak? (Adim)", min_value=1, max_value=8, value=def_kare)
         kisi_sayisi = st.slider("Test Edilecek Kisi Sayisi", min_value=500, max_value=3000, value=1000, step=500)
 
-        # Misli gercek carpanlari
-        carpan_listesi = {1: 0.8124, 2: 1.024, 3: 1.312, 4: 1.708, 5: 2.260, 6: 3.05, 7: 4.20, 8: 6.00}
         carpan = carpan_listesi.get(hedef_kare, 1.0)
         tek_tur_sansi = sans_hesapla(hedef_kare, 5)
 
@@ -134,7 +153,6 @@ else:
 
     with col_sag:
         st.subheader("📈 Monte Carlo Bakiye Yollari")
-        
         kazananlar = 0
         ornek_cizgiler = []
 
@@ -160,8 +178,7 @@ else:
         m1.metric(f"Hedefe Ulasan ({hedef} TL)", f"%{kazanma_yuzdesi:.1f}")
         m2.metric("Sifirlanan / Batan", f"%{batma_yuzdesi:.1f}", delta_color="inverse")
 
-        # 3. Grafik: Mines Bakiye Yollari (Koyu antrasit & Parlak cizgiler)
-        fig3, ax3 = plt.subplots(figsize=(9, 4.5))
+        fig3, ax3 = plt.subplots(figsize=(9, 4.3))
         fig3.patch.set_facecolor('#1E222D')
         ax3.set_facecolor('#1E222D')
 
@@ -177,3 +194,22 @@ else:
         ax3.legend(loc='upper right', facecolor='#2C303E', edgecolor='none', labelcolor='white')
         ax3.grid(True, linestyle='--', alpha=0.2, color='white')
         st.pyplot(fig3)
+
+    # Tum Taktiklerin Karsilastirma Tablosu
+    st.subheader("📋 Tum Taktiklerin 10.000 Kisilik Ozet Tablosu")
+    ozet_data = {
+        "Strateji": [
+            "25 TL Bahis + 3. Kare (Ufak Ufak)",
+            "100 TL Bahis + 4. Kare (10 Can)",
+            "200 TL Bahis + 3. Kare (Dengeli)",
+            "200 TL Bahis + 5. Kare (Agresif)",
+            "500 TL Bahis + 5. Kare (Hizli Vurus)"
+        ],
+        "Bahis": ["25 TL", "100 TL", "200 TL", "200 TL", "500 TL"],
+        "Cikis Karesi": ["3. Kare (1.31x)", "4. Kare (1.71x)", "3. Kare (1.31x)", "5. Kare (2.26x)", "5. Kare (2.26x)"],
+        "2000 TL Basari Sansi": ["%0.0 (Batma Garantili)", "%0.1 - %0.5", "%0.0 - %0.2", "%4.0 - %6.0", "%18.0 - %22.0"],
+        "Masada Kalma Suresi": ["~150 Tur", "~30 Tur", "~15 Tur", "~12 Tur", "~3-4 Tur"],
+        "Matematiksel Durum": ["Kasa komisyonu parayi eritir", "Varyans yuksek", "Carpan yetersiz", "Kisa vadede sans var", "En yuksek katlama ihtimali"]
+    }
+    df_ozet = pd.DataFrame(ozet_data)
+    st.table(df_ozet)
